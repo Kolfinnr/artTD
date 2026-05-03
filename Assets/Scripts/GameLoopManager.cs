@@ -12,16 +12,23 @@ public enum GameState
 
 public class GameLoopManager : MonoBehaviour
 {
+    [Header("Dependencies")]
     [SerializeField] private EnemyArtilleryTimer enemyArtilleryTimer;
     [SerializeField] private BunkerHealth bunkerHealth;
     [SerializeField] private PlayerStateController playerStateController;
+
+    [Header("Round / Stun")]
+    [SerializeField] private int requiredTasksForPrep = 3;
     [SerializeField] private float stunDurationSeconds = 2.5f;
 
     public GameState CurrentState { get; private set; } = GameState.Prep;
+    public int CompletedPrepTasks { get; private set; }
 
     public event Action<GameState> OnStateChanged;
+    public event Action<int, int> OnPrepProgressChanged;
 
     private float stunTimer;
+    private GameState stateBeforeStun = GameState.Prep;
 
     private void Awake()
     {
@@ -69,7 +76,7 @@ public class GameLoopManager : MonoBehaviour
 
     private void Start()
     {
-        SetState(GameState.Prep);
+        EnterPrepState(resetPrepProgress: true);
     }
 
     private void Update()
@@ -83,20 +90,60 @@ public class GameLoopManager : MonoBehaviour
 
         if (stunTimer <= 0f)
         {
-            SetState(GameState.Prep);
+            ExitStunnedState();
         }
     }
 
-    public void SetState(GameState nextState)
+    public void ReportPrepTaskCompleted()
     {
-        if (CurrentState == GameState.GameOver && nextState != GameState.GameOver)
+        if (CurrentState != GameState.Prep || requiredTasksForPrep <= 0)
         {
             return;
         }
 
-        CurrentState = nextState;
-        ApplyPlayerStateForGameState(nextState);
-        OnStateChanged?.Invoke(nextState);
+        CompletedPrepTasks = Mathf.Min(CompletedPrepTasks + 1, requiredTasksForPrep);
+        OnPrepProgressChanged?.Invoke(CompletedPrepTasks, requiredTasksForPrep);
+
+        if (CompletedPrepTasks >= requiredTasksForPrep)
+        {
+            SetState(GameState.Aiming);
+        }
+    }
+
+    public void ReportPlayerFired()
+    {
+        if (CurrentState != GameState.Aiming)
+        {
+            return;
+        }
+
+        SetState(GameState.Resolving);
+    }
+
+    public void ReportShotResolved()
+    {
+        if (CurrentState != GameState.Resolving)
+        {
+            return;
+        }
+
+        EnterPrepState(resetPrepProgress: true);
+    }
+
+    public void ReportEnemyDestroyed()
+    {
+        SetState(GameState.GameOver);
+    }
+
+    private void EnterPrepState(bool resetPrepProgress)
+    {
+        if (resetPrepProgress)
+        {
+            CompletedPrepTasks = 0;
+            OnPrepProgressChanged?.Invoke(CompletedPrepTasks, requiredTasksForPrep);
+        }
+
+        SetState(GameState.Prep);
     }
 
     private void HandleEnemyTimeout()
@@ -110,14 +157,58 @@ public class GameLoopManager : MonoBehaviour
 
         if (CurrentState != GameState.GameOver)
         {
-            stunTimer = stunDurationSeconds;
-            SetState(GameState.Stunned);
+            EnterStunnedState();
         }
+    }
+
+    private void EnterStunnedState()
+    {
+        if (CurrentState != GameState.Stunned)
+        {
+            stateBeforeStun = CurrentState;
+        }
+
+        stunTimer = stunDurationSeconds;
+        SetState(GameState.Stunned);
+    }
+
+    private void ExitStunnedState()
+    {
+        if (CurrentState != GameState.Stunned)
+        {
+            return;
+        }
+
+        GameState resumeState = stateBeforeStun;
+
+        if (resumeState == GameState.GameOver || resumeState == GameState.Stunned)
+        {
+            resumeState = GameState.Prep;
+        }
+
+        SetState(resumeState);
     }
 
     private void HandleBunkerDepleted()
     {
         SetState(GameState.GameOver);
+    }
+
+    private void SetState(GameState nextState)
+    {
+        if (CurrentState == GameState.GameOver && nextState != GameState.GameOver)
+        {
+            return;
+        }
+
+        if (CurrentState == nextState)
+        {
+            return;
+        }
+
+        CurrentState = nextState;
+        ApplyPlayerStateForGameState(nextState);
+        OnStateChanged?.Invoke(nextState);
     }
 
     private void ApplyPlayerStateForGameState(GameState state)
