@@ -3,15 +3,26 @@ using UnityEngine;
 
 public class EnemyArtilleryTimer : MonoBehaviour
 {
-    [SerializeField] private float baseDurationSeconds = 30f;
-    [SerializeField] private float maxDurationSeconds = 40f;
+    [SerializeField] private GameBalanceConfig gameBalanceConfig;
     [SerializeField] private bool autoStart = true;
+
+    private float baseDurationSeconds = 30f;
+    private float maxDurationSeconds = 40f;
 
     public float CurrentTimeSeconds { get; private set; }
     public bool IsRunning { get; private set; }
 
     public event Action<float, float> OnTimeChanged;
     public event Action OnTimeout;
+
+    private void Awake()
+    {
+        if (gameBalanceConfig != null)
+        {
+            baseDurationSeconds = gameBalanceConfig.baseEnemyTimer;
+            maxDurationSeconds = gameBalanceConfig.enemyTimerCap;
+        }
+    }
 
     private void Start()
     {

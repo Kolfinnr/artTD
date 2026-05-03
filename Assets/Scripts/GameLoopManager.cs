@@ -20,6 +20,8 @@ public class GameLoopManager : MonoBehaviour
     [Header("Round / Stun")]
     [SerializeField] private int requiredTasksForPrep = 3;
     [SerializeField] private float stunDurationSeconds = 2.5f;
+    [SerializeField] private int enemyTimeoutDamage = 1;
+    [SerializeField] private GameBalanceConfig gameBalanceConfig;
 
     public GameState CurrentState { get; private set; } = GameState.Prep;
     public int CompletedPrepTasks { get; private set; }
@@ -32,6 +34,12 @@ public class GameLoopManager : MonoBehaviour
 
     private void Awake()
     {
+        if (gameBalanceConfig != null)
+        {
+            stunDurationSeconds = gameBalanceConfig.stunDuration;
+            enemyTimeoutDamage = gameBalanceConfig.enemyTimeoutDamage;
+        }
+
         if (enemyArtilleryTimer == null)
         {
             enemyArtilleryTimer = FindFirstObjectByType<EnemyArtilleryTimer>();
@@ -153,7 +161,7 @@ public class GameLoopManager : MonoBehaviour
             return;
         }
 
-        bunkerHealth.ApplyDamage(1);
+        bunkerHealth.ApplyDamage(enemyTimeoutDamage);
 
         if (CurrentState != GameState.GameOver)
         {

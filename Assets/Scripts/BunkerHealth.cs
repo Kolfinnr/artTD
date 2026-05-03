@@ -3,7 +3,9 @@ using UnityEngine;
 
 public class BunkerHealth : MonoBehaviour
 {
-    [SerializeField] private int maxHealth = 3;
+    [SerializeField] private GameBalanceConfig gameBalanceConfig;
+
+    private int maxHealth = 3;
 
     public int CurrentHealth { get; private set; }
 
@@ -13,6 +15,11 @@ public class BunkerHealth : MonoBehaviour
 
     private void Awake()
     {
+        if (gameBalanceConfig != null)
+        {
+            maxHealth = gameBalanceConfig.maxHp;
+        }
+
         CurrentHealth = maxHealth;
         OnHealthChanged?.Invoke(CurrentHealth, maxHealth);
     }
