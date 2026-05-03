@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 4f;
 
     private Rigidbody2D rb;
+    private PlayerStateController playerStateController;
     private Vector2 movementInput;
 
     // Stores all stations currently inside the player's trigger area.
@@ -23,6 +24,7 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        playerStateController = GetComponent<PlayerStateController>();
     }
 
     private void Update()
@@ -42,6 +44,12 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void ReadMovementInput()
     {
+        if (playerStateController != null && !playerStateController.CanMove)
+        {
+            movementInput = Vector2.zero;
+            return;
+        }
+
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
 
@@ -53,6 +61,11 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void HandleInteractInput()
     {
+        if (playerStateController != null && !playerStateController.CanInteract)
+        {
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.E) && nearestStation != null)
         {
             nearestStation.Interact(this);
